@@ -1,0 +1,3 @@
+# Minimal baseline profile so AGP produces the release .dm artifact.
+HSPLir/locstore/locstore/MainActivity;->onCreate()V
+Lir/locstore/locstore/MainActivity;
