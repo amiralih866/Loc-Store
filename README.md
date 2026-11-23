@@ -37,6 +37,16 @@ no backend, no accounts, no internet permission.
   computed live from invoice-item data (never stored counters), the same invoice with
   several variants of the product appears in each corresponding group, and tapping an
   entry opens the standard Invoice Details screen.
+- **Store payment info (v1.3)** — an optional bank-card number + card-holder name under
+  Settings → Store Information («اطلاعات پرداخت»). These are STORE-level settings (rows
+  in the `settings` table), never copied onto invoice records and never logged. The
+  generated invoice image shows a «اطلاعات پرداخت» block **only on unpaid invoices**:
+  paid invoices carry no card details at all, unpaid invoices show the current card
+  (number grouped in fours, holder name when configured), and when nothing is
+  configured the whole section is omitted. The preview dialog and the shared PNG use
+  the same renderer, so they always match. Changing the store card later never alters
+  historical invoice records — newly generated images simply pick up the current card,
+  and status edits (Unpaid ⇄ Paid) instantly change whether card info appears.
 - **Price snapshots (critical rule)** — invoice items store the exact unit price, product
   name, color and variant name at sale time, and each invoice stores a historical
   customer-name snapshot. Later price/customer edits never alter history.
@@ -44,8 +54,9 @@ no backend, no accounts, no internet permission.
   selling more than available is rejected with a clear message (and nothing is written).
 - **Invoice deletion with restock** — deleting an invoice returns quantities to stock.
 - **Invoice as image** — generates a professional receipt-style PNG (store name/logo,
-  number, Jalali date, payment status, items, optional description, totals) from the
-  historical snapshot and shares it via the Android share sheet (WhatsApp / Telegram / …).
+  number, Jalali date, payment status, items, optional description, totals, store
+  payment card for unpaid invoices) from the historical snapshot and shares it via the
+  Android share sheet (WhatsApp / Telegram / …).
 - **Dashboard** — products count, total stock, today's invoices & sales, low-stock list,
   recent invoices, plus a one-tap *Create Invoice* action.
 - **Archive instead of delete** — products referenced by historical invoices are archived
@@ -79,7 +90,7 @@ lib/
 │   ├── image_store.dart          # product photos & logo in app storage
 │   └── backup_service.dart       # backup / validate / restore / delete-all
 ├── models/                 # Product, ProductVariant, Customer, Invoice, InvoiceItem, …
-├── state/app_state.dart    # AppSettingsController (currency, theme, store info)
+├── state/app_state.dart    # AppSettingsController (currency, theme, store info, payment card)
 ├── services/
 │   ├── invoice_image.dart  # canvas-rendered receipt PNG (Vazirmatn, RTL)
 │   └── share_service.dart  # Android share sheet
@@ -102,7 +113,7 @@ lib/
 | `customers` | name (NOT unique by design), phone, notes, created_at |
 | `invoices` | sequential number, `customer_id` → customers, historical customer-name snapshot, `status` ('Paid'/'Unpaid'), optional `description`, total, created_at |
 | `invoice_items` | **snapshots**: product/variant names, color, quantity, unit price, line total |
-| `settings` | currency unit, theme, palette, low-stock threshold, store info |
+| `settings` | currency unit, theme, palette, low-stock threshold, store info, payment card (number + holder name) |
 
 Schema migrations run automatically on app update — no manual backup/restore is ever
 needed:
@@ -120,7 +131,8 @@ Business rules (price fallback, stock ≥ 0, invoice⇄stock atomicity, snapshot
 restock on delete, customer dedupe & delete guard) are centralized in the repositories and
 covered by unit tests (`test/jalali_test.dart`, `test/format_test.dart`,
 `test/business_test.dart`, `test/customer_test.dart`, `test/low_stock_test.dart`,
-`test/backup_v1_test.dart`, `test/invoice_status_history_test.dart`) running against a
+`test/backup_v1_test.dart`, `test/invoice_status_history_test.dart`,
+`test/payment_info_test.dart`) running against a
 real SQLite engine, including the v1 → v2 → v3 migrations and the old-backup restore path.
 
 ## 🔨 Building

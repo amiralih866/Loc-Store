@@ -173,6 +173,11 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
         logoRelativePath: ctrl.storeLogoPath,
         logoDocsDirPath: logoDir,
         accent: ctrl.palette.seed,
+        // Current store-level card info — the image generator itself
+        // decides (unpaid + configured) whether the section appears, so
+        // the preview dialog and the shared PNG always match.
+        cardNumber: ctrl.cardNumber,
+        cardHolderName: ctrl.cardHolderName,
       );
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
     } catch (e) {

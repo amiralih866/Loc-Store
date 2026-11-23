@@ -20,6 +20,12 @@ class AppSettingsController extends ChangeNotifier {
   String storePhone = '';
   String storeAddress = '';
   String? storeLogoPath;
+
+  /// Store-level payment info (bank card). Optional — '' means not set.
+  /// The card number is kept normalized to digits only. This belongs to the
+  /// store, is never copied into invoices, and is never logged.
+  String cardNumber = '';
+  String cardHolderName = '';
   bool loaded = false;
 
   Future<void> load() async {
@@ -46,6 +52,10 @@ class AppSettingsController extends ChangeNotifier {
     storeAddress = await _settings.getString(SettingsRepository.kStoreAddress, '');
     final logo = await _settings.getString(SettingsRepository.kStoreLogo, '');
     storeLogoPath = logo.isEmpty ? null : logo;
+
+    cardNumber = await _settings.getString(SettingsRepository.kCardNumber, '');
+    cardHolderName =
+        await _settings.getString(SettingsRepository.kCardHolderName, '');
 
     loaded = true;
     notifyListeners();
@@ -99,6 +109,24 @@ class AppSettingsController extends ChangeNotifier {
     await _settings.setString(SettingsRepository.kStorePhone, storePhone);
     await _settings.setString(SettingsRepository.kStoreAddress, storeAddress);
     await _settings.setString(SettingsRepository.kStoreLogo, storeLogoPath ?? '');
+    notifyListeners();
+  }
+
+  /// Persists the store-level payment information (bank card).
+  ///
+  /// Both fields are optional ('' = not configured). The card number is
+  /// normalized to digits only before saving. This is STORE configuration —
+  /// it is never copied into invoice records, so changing it later never
+  /// modifies historical invoices, and it is never written to any log.
+  Future<void> setPaymentInfo({
+    required String cardNumber,
+    required String holderName,
+  }) async {
+    this.cardNumber = normalizeCardNumber(cardNumber);
+    cardHolderName = holderName.trim();
+    await _settings.setString(SettingsRepository.kCardNumber, this.cardNumber);
+    await _settings.setString(
+        SettingsRepository.kCardHolderName, cardHolderName);
     notifyListeners();
   }
 }

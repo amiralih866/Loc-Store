@@ -24,6 +24,12 @@ class InvoiceImageGenerator {
     required String? logoRelativePath,
     required String? logoDocsDirPath,
     required ui.Color accent,
+
+    /// Store-level payment info, injected at GENERATION time from the
+    /// current store settings — never stored on the invoice. Shown only on
+    /// unpaid invoices, and only when at least one field is configured.
+    String cardNumber = '',
+    String cardHolderName = '',
   }) async {
     const margin = 56.0;
     final contentW = pageW - margin * 2;
@@ -52,6 +58,7 @@ class InvoiceImageGenerator {
       ui.FontWeight weight = ui.FontWeight.w400,
       required ui.Color color,
       ui.TextAlign align = ui.TextAlign.right,
+      ui.TextDirection dir = ui.TextDirection.rtl,
       double lineHeight = 1.5,
       double? width,
       int maxLines = 1,
@@ -62,7 +69,7 @@ class InvoiceImageGenerator {
           fontSize: size,
           fontWeight: weight,
           textAlign: align,
-          textDirection: ui.TextDirection.rtl,
+          textDirection: dir,
           height: lineHeight,
           maxLines: maxLines,
         ),
@@ -345,6 +352,83 @@ class InvoiceImageGenerator {
       c.drawParagraph(totalVal,
           ui.Offset(margin + 24, y + (bandH - 8 - totalVal.height) / 2));
     }));
+
+    // ---- payment information (store bank card) — ONLY on unpaid
+    // invoices and only when configured. Card details are injected from
+    // the CURRENT store settings at generation time: changing the store
+    // card later never alters invoice records, and newly generated images
+    // simply pick up the current card.
+    final cardDigits = normalizeCardNumber(cardNumber);
+    final holderName = cardHolderName.trim();
+    if (showPaymentInfoOnInvoice(invoice.status, cardDigits, holderName)) {
+      const unpaidInk = ui.Color(0xFFB45309);
+      final titleP = para('اطلاعات پرداخت',
+          size: 26,
+          weight: ui.FontWeight.w800,
+          color: unpaidInk,
+          width: contentW - 48);
+      final hasCard = cardDigits.isNotEmpty;
+      final hasHolder = holderName.isNotEmpty;
+      const labelW = 260.0;
+      final cardLabelP = hasCard
+          ? para('شماره کارت', size: 24, color: muted, width: labelW)
+          : null;
+      final cardValP = hasCard
+          ? para(
+              formatCardNumber(cardDigits),
+              size: 31,
+              weight: ui.FontWeight.w700,
+              color: ink,
+              align: ui.TextAlign.left,
+              dir: ui.TextDirection.ltr,
+              width: contentW - 48 - labelW - 8,
+            )
+          : null;
+      final holderP = hasHolder
+          ? para('به نام: $holderName',
+              size: 26,
+              color: ink,
+              width: contentW - 48,
+              maxLines: 2)
+          : null;
+      var rowH = 0.0;
+      if (cardValP != null && cardLabelP != null) {
+        rowH = cardValP.height > cardLabelP.height
+            ? cardValP.height
+            : cardLabelP.height;
+      }
+      var payH = 20 + titleP.height + 14;
+      if (cardValP != null) payH += rowH + 14;
+      if (holderP != null) payH += holderP.height + 10;
+      payH += 18;
+      els.add((payH, (c, y) {
+        c.drawRRect(
+          ui.RRect.fromRectAndRadius(
+              ui.Rect.fromLTWH(margin, y, contentW, payH - 10),
+              const ui.Radius.circular(18)),
+          ui.Paint()..color = unpaidInk.withValues(alpha: 0.07),
+        );
+        c.drawParagraph(titleP, ui.Offset(margin + 24, y + 20));
+        var py = y + 20 + titleP.height + 14;
+        if (cardValP != null && cardLabelP != null) {
+          // RTL label pinned to the right edge, LTR card number to the
+          // left — separate paragraphs so the digit groups keep their
+          // left-to-right order inside the RTL layout.
+          c.drawParagraph(
+              cardLabelP,
+              ui.Offset(
+                  pageW - margin - 24 - labelW, py + (rowH - cardLabelP.height) / 2));
+          c.drawParagraph(
+              cardValP,
+              ui.Offset(
+                  margin + 24, py + (rowH - cardValP.height) / 2));
+          py += rowH + 14;
+        }
+        if (holderP != null) {
+          c.drawParagraph(holderP, ui.Offset(margin + 24, py));
+        }
+      }));
+    }
 
     // ---- footer
     final thanksP = para('با تشکر از اعتماد شما',

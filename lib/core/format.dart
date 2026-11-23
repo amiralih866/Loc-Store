@@ -1,4 +1,5 @@
 import 'jalali.dart';
+import '../models/invoice.dart';
 
 /// Number & money formatting helpers for the Persian UI.
 
@@ -86,3 +87,64 @@ String faTime(DateTime dt) {
   final m = dt.minute.toString().padLeft(2, '0');
   return toPersianDigits('$h:$m');
 }
+
+/// ---- Store payment information (bank card) helpers ----
+///
+/// Card data is sensitive store-level configuration: it lives ONLY in the
+/// settings table, is normalized to plain digits, and is never logged.
+
+/// Maximum stored card-number digits — a generic sanity cap, not an
+/// issuer-specific validation rule.
+const int maxCardDigits = 19;
+
+/// Normalizes card-number input to a pure ASCII-digit string: converts
+/// Persian/Arabic digits, then strips spaces, dashes and every other
+/// separator. The stored value is always this normalized form.
+String normalizeCardNumber(String raw) {
+  final digits = toLatinDigits(raw).replaceAll(RegExp(r'[^0-9]'), '');
+  return digits.length > maxCardDigits
+      ? digits.substring(0, maxCardDigits)
+      : digits;
+}
+
+/// Readable groups of four digits: "6037 9912 3456 7890"
+/// (a trailing remainder group is kept when the length is not a multiple
+/// of four).
+String formatCardNumber(String digits) {
+  final d = normalizeCardNumber(digits);
+  final sb = StringBuffer();
+  for (var i = 0; i < d.length; i++) {
+    sb.write(d[i]);
+    if ((i + 1) % 4 == 0 && i != d.length - 1) sb.write(' ');
+  }
+  return sb.toString();
+}
+
+/// Masked display for glanceable UI: "6037 •••• •••• 7890".
+/// Short inputs are returned as-is (nothing worth masking).
+String maskCardNumber(String digits) {
+  final d = normalizeCardNumber(digits);
+  if (d.length <= 8) return d;
+  final sb = StringBuffer(d.substring(0, 4));
+  final mid = d.length - 8;
+  for (var i = 0; i < mid; i++) {
+    if (i % 4 == 0) sb.write(' ');
+    sb.write('•');
+  }
+  sb
+    ..write(' ')
+    ..write(d.substring(d.length - 4));
+  return sb.toString();
+}
+
+/// Whether the store payment-information block belongs on this invoice's
+/// image: ONLY unpaid invoices, and only when at least one card field is
+/// configured at store level. Paid invoices never carry card details —
+/// the fact that the invoice is paid is sufficient.
+bool showPaymentInfoOnInvoice(
+  InvoiceStatus status,
+  String cardNumber,
+  String cardHolderName,
+) =>
+    status == InvoiceStatus.unpaid &&
+    (cardNumber.trim().isNotEmpty || cardHolderName.trim().isNotEmpty);

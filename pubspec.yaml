@@ -1,7 +1,7 @@
 name: locstore
 description: "LocStore — مدیریت انبار و فاکتور پوشاک (local-first inventory & invoicing)."
 publish_to: "none"
-version: 1.2.0+4
+version: 1.3.0+5
 
 environment:
   sdk: ^3.13.7

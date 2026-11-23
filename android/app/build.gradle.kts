@@ -67,6 +67,16 @@ android {
     }
 }
 
+// Native debug-symbol-table extraction (extract*NativeSymbolTables) only
+// matters when uploading to Google Play ("native debug symbols" check).
+// This sandbox cannot provide a real llvm-objcopy, and the metadata is not
+// part of the delivered APK — skip the task entirely.
+tasks.whenTaskAdded {
+    if (name.contains("NativeSymbolTables")) {
+        enabled = false
+    }
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
